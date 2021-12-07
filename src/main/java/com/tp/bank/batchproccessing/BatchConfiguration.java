@@ -2,48 +2,57 @@ package com.tp.bank.batchproccessing;
 
 import com.tp.bank.dto.TransactionDto;
 import com.tp.bank.model.Transaction;
-import org.springframework.batch.core.Job;
-import org.springframework.batch.core.Step;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.batch.core.*;
 import org.springframework.batch.core.configuration.annotation.EnableBatchProcessing;
 import org.springframework.batch.core.configuration.annotation.JobBuilderFactory;
 import org.springframework.batch.core.configuration.annotation.StepBuilderFactory;
+import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
+import org.springframework.batch.core.repository.JobExecutionAlreadyRunningException;
+import org.springframework.batch.core.repository.JobInstanceAlreadyCompleteException;
+import org.springframework.batch.core.repository.JobRestartException;
 import org.springframework.batch.item.file.FlatFileItemReader;
 import org.springframework.batch.item.file.builder.FlatFileItemReaderBuilder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.PathResource;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
+
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.util.Date;
 
 @Configuration
 @EnableBatchProcessing
+@EnableScheduling
 public class BatchConfiguration {
+
+    private final Logger logger = LoggerFactory.getLogger(BatchConfiguration.class);
+
     @Autowired
     public JobBuilderFactory jobBuilderFactory;
 
     @Autowired
     public StepBuilderFactory stepBuilderFactory;
 
-//    @Bean
-//    public ConversionService conversionService(){
-//        DefaultConversionService conversionService = new DefaultConversionService();
-//        DefaultConversionService.addDefaultConverters(conversionService);
-//        conversionService.addConverter(new Converter<String, LocalDateTime>(){
-//            @Override
-//            public LocalDateTime convert(String value) {
-//                return LocalDateTime.parse(value, DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"));
-//            }
-//        });
-//        return conversionService;
-//    }
-//
-//    @Bean
-//    public FieldSetMapper<TransactionDto> transactionDtoRowMapper() {
-//        BeanWrapperFieldSetMapper<TransactionDto> mapper = new BeanWrapperFieldSetMapper<>();
-//        mapper.setConversionService(conversionService());
-//        mapper.setTargetType(TransactionDto.class);
-//        return mapper;
-//    }
+    @Autowired
+    private JobLauncher jobLauncher;
+
+    @Scheduled(fixedRate = 10000)
+    public void launchJob() throws JobParametersInvalidException, JobExecutionAlreadyRunningException, JobRestartException, JobInstanceAlreadyCompleteException {
+
+        logger.debug("scheduler starts at " + LocalDateTime.now());
+
+        JobExecution jobExecution = jobLauncher.run(readCSVFile(),new JobParametersBuilder().addDate("launchDate",new Date()).toJobParameters());
+
+        logger.debug("Batch job ends with status as " + jobExecution.getStatus());
+
+    }
 
     @Bean
     public FlatFileItemReader<TransactionDto> reader() {
