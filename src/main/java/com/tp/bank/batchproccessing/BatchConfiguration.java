@@ -19,12 +19,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.PathResource;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 
-import java.time.Instant;
-import java.time.LocalDateTime;
 import java.util.Date;
 
 @Configuration
@@ -34,25 +31,28 @@ public class BatchConfiguration {
 
     private final Logger logger = LoggerFactory.getLogger(BatchConfiguration.class);
 
+
     @Autowired
     public JobBuilderFactory jobBuilderFactory;
-
     @Autowired
     public StepBuilderFactory stepBuilderFactory;
-
     @Autowired
     private JobLauncher jobLauncher;
 
-    @Scheduled(fixedRate = 10000)
+
+    @Scheduled(cron = "0 0 0 0 1 0")
     public void launchJob() throws JobParametersInvalidException, JobExecutionAlreadyRunningException, JobRestartException, JobInstanceAlreadyCompleteException {
 
-        logger.debug("scheduler starts at " + LocalDateTime.now());
+        logger.debug("scheduler starts ");
 
-        JobExecution jobExecution = jobLauncher.run(readCSVFile(),new JobParametersBuilder().addDate("launchDate",new Date()).toJobParameters());
-
+        JobExecution jobExecution = jobLauncher.run(readCSVFile(), new JobParametersBuilder()
+                .addDate("launchDate", new Date())
+                .toJobParameters()
+        );
         logger.debug("Batch job ends with status as " + jobExecution.getStatus());
-
+        logger.info("scheduler end");
     }
+
 
     @Bean
     public FlatFileItemReader<TransactionDto> reader() {
@@ -62,7 +62,7 @@ public class BatchConfiguration {
                 .linesToSkip(1)
                 .delimited()
                 .names("idTransaction", "idCompte", "montant", "dateTransaction")
-                .fieldSetMapper(new CustomBeanMapper() {{
+                .fieldSetMapper(new CustomBeanMapper<>() {{
                     setTargetType(TransactionDto.class);
                 }})
                 .build();
